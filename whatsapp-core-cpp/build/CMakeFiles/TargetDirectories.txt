@@ -1,0 +1,3 @@
+/home/josecxz/projects/whatsapp-llm/whatsapp-core-cpp/build/CMakeFiles/whatsapp_core.dir
+/home/josecxz/projects/whatsapp-llm/whatsapp-core-cpp/build/CMakeFiles/edit_cache.dir
+/home/josecxz/projects/whatsapp-llm/whatsapp-core-cpp/build/CMakeFiles/rebuild_cache.dir

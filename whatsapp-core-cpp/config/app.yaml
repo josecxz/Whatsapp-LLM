@@ -1,0 +1,7 @@
+server:
+  port: 8080
+
+database:
+  host: localhost
+  name: STRIX_MAIN
+  user: qwenuser

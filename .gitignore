@@ -1,0 +1,31 @@
+# --- GENERAL ---
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# --- C++ (whatsapp_core_cpp) ---
+# Ignorar carpeta de compilación
+whatsapp_core_cpp/build/
+
+# Ignorar objetos compilados por si acaso
+*.o
+*.obj
+
+# --- GO (whatsapp_core_go) ---
+# Ignorar el binario compilado (asumiendo que se llama whatsapp-bot o main)
+whatsapp_core_go/main
+*.exe
+
+# Ignorar credenciales de sesión de WhatsApp (¡MUY IMPORTANTE!)
+whatsapp_core_go/whatsapp.db
+whatsapp_core_go/*.db
+
+# --- DATOS SENSIBLES / ENV ---
+.env
+config.json
+
+# --- BASE DE DATOS Y RAG ---
+# Si tu índice FAISS se guarda en disco, ignóralo (es binario grande)
+*.index
+*.bin
