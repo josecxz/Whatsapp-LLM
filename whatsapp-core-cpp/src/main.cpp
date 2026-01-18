@@ -40,13 +40,11 @@ int main() {
         // ==========================================
         
         // A. Cliente Ollama
-        // Asegúrate de usar el modelo correcto ("qwen2.5:0.5b")
-        auto ollama = std::make_shared<OllamaClient>("http://localhost:11434", "qwen2.5:0.5b");
+        // Asegúrate de usar el modelo correcto ("llama3.2")
+        auto ollama = std::make_shared<OllamaClient>("http://ollama-service:11434", "llama3.2");
         
         // B. Almacén Vectorial (FAISS)
-        // IMPORTANTE: Dimension 896 para Qwen 2.5 0.5b (antes era 1024 para v2.0)
-        auto vector_store = std::make_shared<VectorStore>(896);
-        
+        auto vector_store = std::make_shared<VectorStore>(768); // Dimensión para nomic-embed-text    
         // C. Servicio RAG (El orquestador)
         auto rag_service = std::make_shared<RagService>(ollama, vector_store, db);
         spdlog::info("🧠 Servicio RAG inicializado correctamente");

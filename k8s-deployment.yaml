@@ -1,0 +1,197 @@
+# ===========================
+# 1. BASE DE DATOS (MariaDB)
+# ===========================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-service
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: mariadb
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+spec:
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:11.2
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              value: "mypassword"
+            - name: MARIADB_DATABASE
+              value: "STRIX_MAIN"
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - mountPath: "/var/lib/mysql"
+              name: mariadb-storage
+      volumes:
+        - name: mariadb-storage
+          persistentVolumeClaim:
+            claimName: mariadb-pvc
+
+# ===========================
+# 2. INTELIGENCIA ARTIFICIAL (Ollama)
+# ===========================
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-service
+spec:
+  ports:
+    - port: 11434
+  selector:
+    app: ollama
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          volumeMounts:
+            - mountPath: "/root/.ollama"
+              name: ollama-storage
+      volumes:
+        - name: ollama-storage
+          persistentVolumeClaim:
+            claimName: ollama-pvc
+
+# ===========================
+# 3. CEREBRO C++ (Core Backend)
+# ===========================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cpp-core-service
+spec:
+  selector:
+    app: whatsapp-core
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whatsapp-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whatsapp-core
+  template:
+    metadata:
+      labels:
+        app: whatsapp-core
+    spec:
+      # --- EL PORTERO (INIT CONTAINER) ---
+      initContainers:
+      - name: wait-for-ollama
+        image: busybox:1.28
+        command: 
+          - 'sh'
+          - '-c'
+          - "until wget -q --spider http://ollama-service:11434; do echo '⏳ Esperando a que Ollama despierte...'; sleep 2; done"
+      
+      # --- EL CEREBRO ---
+      containers:
+        - name: whatsapp-core
+          image: my-whatsapp-core:v1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: "mariadb-service"
+            - name: OLLAMA_HOST
+              value: "http://ollama-service:11434"
+
+# ===========================
+# 4. CLIENTE WHATSAPP (Gateway Go)
+# ===========================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whatsapp-go-service
+spec:
+  selector:
+    app: whatsapp-go
+  ports:
+    - port: 3000 # O el puerto que use tu Go
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whatsapp-go
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whatsapp-go
+  template:
+    metadata:
+      labels:
+        app: whatsapp-go
+    spec:
+      containers:
+        - name: whatsapp-go
+          image: my-whatsapp-go:v1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3000 # Ajusta si tu Go usa otro puerto
+          env:
+            # Le decimos a Go dónde está el cerebro C++
+            - name: CORE_URL 
+              value: "http://cpp-core-service:8080"

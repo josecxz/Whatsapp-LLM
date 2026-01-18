@@ -65,50 +65,57 @@ void RagService::IngestMessage(const std::string& msg_id, const std::string& con
 std::string RagService::Ask(const std::string& question) {
     spdlog::info("🤖 Usuario pregunta: {}", question);
 
-    // PASO A: Vectorizar la pregunta
+    // 1. Vectorizar la pregunta (Usando Nomic idealmente)
     auto query_vec = m_llm->GetEmbedding(question);
-    if (query_vec.empty()) {
-        return "Lo siento, tuve un error interno procesando tu pregunta (Embedding error).";
-    }
+    if (query_vec.empty()) return "Tuve un problema procesando tu pregunta.";
 
-    // PASO B: Buscar los 5 mensajes más relevantes en FAISS
-    std::vector<std::string> relevant_ids = m_vec_store->Search(query_vec, 5);
-
-    spdlog::info("🔍 RAG encontró {} IDs relevantes.", relevant_ids.size());
-
-    if (relevant_ids.empty()) {
-        return "No encontré información relevante en tus chats anteriores para responder a eso.";
-    }
-
-    // PASO C: Recuperar el texto real de MariaDB usando los IDs
-    std::stringstream context_ss;
-    context_ss << "Historial de mensajes recuperado:\n";
+    // 2. Buscar contexto (Buscamos 8 para tener más margen de historia)
+    auto relevant_ids = m_vec_store->Search(query_vec, 8);
     
+    std::stringstream context_ss;
+    bool found_data = false;
+
+    // --- CONSTRUCCIÓN DEL CONTEXTO ---
     for (const auto& id : relevant_ids) {
         auto msg_text = m_db->GetMessageContentById(id); 
         if (!msg_text.empty()) {
+            // Formateamos como lista para que el modelo lo lea fácil
             context_ss << "- " << msg_text << "\n";
-            spdlog::info("   -> Contexto recuperado: {}", msg_text); // Log para depurar
+            found_data = true;
+            
+            // Log para debug (Vital para ver qué encuentra)
+            spdlog::info("📄 RAG Contexto: {}", msg_text); 
         }
     }
 
-    // PASO D: Construir el Prompt para el LLM
-    std::string context = context_ss.str();
-    
-    // Si la DB falló y no trajo texto, no enviamos basura a la IA
-    if (context.length() < 35) { // 35 es aprox el largo del header "Historial..."
-        return "Encontré referencias a mensajes antiguos, pero no pude leer su contenido de la base de datos.";
-    }
+    if (!found_data) return "No encontré información relacionada en tus chats.";
 
+    // =========================================================================
+    // 🧠 SYSTEM PROMPT: EL CEREBRO DEL ASISTENTE
+    // =========================================================================
     std::string system_prompt = 
-        "Eres un asistente personal inteligente que analiza conversaciones de WhatsApp. "
-        "Tu objetivo es responder a la pregunta del usuario basándote EXCLUSIVAMENTE en el contexto proporcionado abajo. "
-        "Si la respuesta no está en el contexto, di amablemente que no tienes esa información. "
-        "Sé conciso y directo.\n\n"
-        "CONTEXTO:\n" + context;
+        "Eres un Asistente de Memoria Personal inteligente y útil. "
+        "Tu trabajo es responder a mis preguntas basándote en el historial de mis chats recuperados.\n"
+        "\nINSTRUCCIONES CLAVE:"
+        "\n1. INTERPRETACIÓN DE USUARIOS: El nombre 'Yo (Sistema)' o 'Yo' se refiere a MÍ (el usuario actual). Cuando hables de lo que dije, usa 'Tú dijiste...'. Los otros nombres son mis contactos."
+        "\n2. FUENTE DE VERDAD: Usa ÚNICAMENTE el bloque de 'CONTEXTO'. Si la respuesta no está ahí, di 'No recuerdo haber hablado de eso'."
+        "\n3. CONTRADICCIONES: Si encuentras información contradictoria (ej. dos colores favoritos o dos claves distintas), menciona AMBAS opciones indicando que aparecen en momentos diferentes."
+        "\n4. PRIVACIDAD: Estos son mis datos personales. Si pregunto por un dato exacto (como una clave, dirección o número) que aparece en el contexto, tienes permiso para mostrármelo.";
 
-    // PASO E: Generar respuesta
-    auto answer = m_llm->Chat(system_prompt, question);
+    // =========================================================================
+    // 🗣️ USER PROMPT: LA PETICIÓN
+    // =========================================================================
+    std::stringstream user_prompt_ss;
+    user_prompt_ss 
+        << "Consulta los siguientes fragmentos de mi historial de chat:\n\n"
+        << "### CONTEXTO ###\n"
+        << context_ss.str()
+        << "### FIN CONTEXTO ###\n\n"
+        << "Basado en lo anterior, responde: " << question;
+
+    // 3. Enviar a Llama
+    // Sugerencia: Usa temperatura baja (0.1 o 0.2) en OllamaClient para reducir alucinaciones
+    auto answer = m_llm->Chat(system_prompt, user_prompt_ss.str());
     
-    return answer.value_or("Error conectando con el modelo de IA.");
+    return answer.value_or("El modelo no pudo generar una respuesta.");
 }

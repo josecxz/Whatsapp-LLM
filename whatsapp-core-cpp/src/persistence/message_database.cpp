@@ -11,7 +11,7 @@ MYSQL* db_connect() {
 
     if (!mysql_real_connect(
             conn,
-            "localhost",
+            "mariadb-service",
             "qwenuser",
             "mypassword",
             "STRIX_MAIN",
@@ -91,7 +91,7 @@ std::vector<DBMessage> MessageDatabase::GetAllMessages(int limit) {
     // Ordenamos descendente para coger los últimos, y luego invertimos o procesamos
     // Aquí cogemos los últimos 'limit' mensajes
     std::string query = "SELECT id, sender, content FROM messages ORDER BY timestamp DESC LIMIT " + std::to_string(limit);
-
+ 
     if (mysql_query(m_conn, query.c_str())) {
         spdlog::error("Error cargando historial: {}", mysql_error(m_conn));
         return messages;

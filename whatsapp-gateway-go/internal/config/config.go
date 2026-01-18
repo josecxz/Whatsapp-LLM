@@ -16,7 +16,7 @@ var (
 func Init() {
 	// 1. Configuración del Backend C++
 	// Busca la variable de entorno BACKEND_URL, si no existe usa localhost:8080
-	BackendURL = getEnv("BACKEND_URL", "http://localhost:8080/ingest")
+	BackendURL = getEnv("BACKEND_URL", "http://cpp-core-service:8080/ingest")
 
 	// 2. Configuración de la Base de Datos SQLite (Sesión de WhatsApp)
 	// Cambiamos la ruta por defecto a la raíz ("whatsapp.db") para evitar

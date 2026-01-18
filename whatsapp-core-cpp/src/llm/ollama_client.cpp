@@ -10,7 +10,7 @@ OllamaClient::OllamaClient(const std::string& host, const std::string& model)
 
 std::vector<float> OllamaClient::GetEmbedding(const std::string& text) {
     json payload = {
-        {"model", m_model},
+        {"model", "nomic-embed-text"},
         {"prompt", text}
     };
 
@@ -19,7 +19,7 @@ std::vector<float> OllamaClient::GetEmbedding(const std::string& text) {
             cpr::Url{m_host + "/api/embeddings"},
             cpr::Body{payload.dump()},
             cpr::Header{{"Content-Type", "application/json"}},
-            cpr::Timeout{5000} // 5s timeout
+            cpr::Timeout{60000} // 30s timeout
         );
 
         if (response.status_code == 200) {
@@ -49,7 +49,7 @@ std::optional<std::string> OllamaClient::Chat(const std::string& system_prompt, 
             cpr::Url{m_host + "/api/chat"},
             cpr::Body{payload.dump()},
             cpr::Header{{"Content-Type", "application/json"}},
-            cpr::Timeout{30000} // 30s timeout para generación
+            cpr::Timeout{120000} // 120s timeout para generación
         );
 
         if (response.status_code == 200) {
