@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <cstdlib> // Necesario para std::getenv
 #include <spdlog/spdlog.h>
 
 // Librerías del Servidor
@@ -39,21 +40,30 @@ int main() {
         // 3. INICIALIZACIÓN DE CAPA DE IA (RAG)
         // ==========================================
         
-        // A. Cliente Ollama
-        // Asegúrate de usar el modelo correcto ("llama3.2")
-        auto ollama = std::make_shared<OllamaClient>("http://ollama-service:11434", "llama3.2");
+        // A. Configuración Dinámica de Ollama (Para conectar con WSL2/GPU)
+        const char* env_host = std::getenv("OLLAMA_HOST");
+        std::string ollama_url = env_host ? env_host : "http://localhost:11434"; // Fallback por defecto
+
+        spdlog::info("🔌 Conectando a Cerebro IA (Ollama) en: {}", ollama_url);
+
+        // B. Cliente Ollama
+        // Usamos "qwen2.5:7b" como modelo principal de Chat (tu GPU lo moverá rápido)
+        // Nota: El modelo de embeddings ("nomic-embed-text") está hardcoded dentro de OllamaClient.cpp
+        auto ollama = std::make_shared<OllamaClient>(ollama_url, "qwen2.5:7b");
         
-        // B. Almacén Vectorial (FAISS)
-        auto vector_store = std::make_shared<VectorStore>(768); // Dimensión para nomic-embed-text    
-        // C. Servicio RAG (El orquestador)
+        // C. Almacén Vectorial (FAISS)
+        // Usamos dimensión 768 porque es lo que genera "nomic-embed-text"
+        auto vector_store = std::make_shared<VectorStore>(768); 
+        
+        // D. Servicio RAG (El orquestador)
         auto rag_service = std::make_shared<RagService>(ollama, vector_store, db);
         spdlog::info("🧠 Servicio RAG inicializado correctamente");
 
         // ==========================================
-        // 🆕 NUEVO: CARGAR MEMORIA DEL PASADO
+        // 🆕 CARGAR MEMORIA DEL PASADO
         // ==========================================
-        // Esto leerá los mensajes antiguos de la DB y los indexará en FAISS
-        // antes de aceptar nuevas peticiones.
+        // Esto leerá los mensajes antiguos de la DB, generará embeddings con Nomic
+        // y los indexará en FAISS RAM.
         rag_service->LoadHistoryFromDB();
 
 
@@ -75,7 +85,7 @@ int main() {
         // ==========================================
         std::cout << "\n✅ Core backend listening on port 8080\n";
         std::cout << "   - /ingest (POST): Recibe mensajes de WhatsApp\n";
-        std::cout << "   - /chat   (POST): Responde preguntas con RAG\n\n";
+        std::cout << "   - /chat   (POST): Responde preguntas con RAG (Qwen 7B)\n\n";
         
         // Escuchar en todas las interfaces
         server.listen("0.0.0.0", 8080);

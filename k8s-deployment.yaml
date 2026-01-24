@@ -55,58 +55,6 @@ spec:
             claimName: mariadb-pvc
 
 # ===========================
-# 2. INTELIGENCIA ARTIFICIAL (Ollama)
-# ===========================
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: ollama-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ollama-service
-spec:
-  ports:
-    - port: 11434
-  selector:
-    app: ollama
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ollama
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: ollama
-  template:
-    metadata:
-      labels:
-        app: ollama
-    spec:
-      containers:
-        - name: ollama
-          image: ollama/ollama:latest
-          ports:
-            - containerPort: 11434
-          volumeMounts:
-            - mountPath: "/root/.ollama"
-              name: ollama-storage
-      volumes:
-        - name: ollama-storage
-          persistentVolumeClaim:
-            claimName: ollama-pvc
-
-# ===========================
 # 3. CEREBRO C++ (Core Backend)
 # ===========================
 ---
@@ -141,7 +89,7 @@ spec:
         command: 
           - 'sh'
           - '-c'
-          - "until wget -q --spider http://ollama-service:11434; do echo '⏳ Esperando a que Ollama despierte...'; sleep 2; done"
+          - "until wget -q --spider http://172.30.77.244:11434; do echo '⏳ Esperando a que Ollama despierte...'; sleep 2; done"
       
       # --- EL CEREBRO ---
       containers:
@@ -154,7 +102,7 @@ spec:
             - name: DB_HOST
               value: "mariadb-service"
             - name: OLLAMA_HOST
-              value: "http://ollama-service:11434"
+              value: "http://172.30.77.244:11434"
 
 # ===========================
 # 4. CLIENTE WHATSAPP (Gateway Go)

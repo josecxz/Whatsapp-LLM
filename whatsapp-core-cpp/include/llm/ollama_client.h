@@ -6,8 +6,7 @@
 
 class OllamaClient {
 public:
-    OllamaClient(const std::string& host = "http://localhost:11434", const std::string& model = "llama3.2");
-    
+    OllamaClient(const std::string& base_url, const std::string& chat_model);    
     // Convierte texto a vector (Embedding)
     std::vector<float> GetEmbedding(const std::string& text);
     
